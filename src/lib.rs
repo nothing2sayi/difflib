@@ -2,7 +2,7 @@ pub mod differ;
 pub mod sequencematcher;
 mod utils;
 
-use sequencematcher::{Sequence, SequenceMatcher};
+use sequencematcher::{Sequence, SequenceMatcher, Tag};
 use std::collections::HashMap;
 use std::fmt::Display;
 use utils::{format_range_context, format_range_unified};
@@ -59,7 +59,7 @@ pub fn unified_diff<T: Sequence + Display>(
             file1_range, file2_range, lineterm
         ));
         for code in group {
-            if code.tag == "equal" {
+            if code.tag == Tag::Equal {
                 for item in first_sequence
                     .iter()
                     .take(code.first_end)
@@ -69,7 +69,7 @@ pub fn unified_diff<T: Sequence + Display>(
                 }
                 continue;
             }
-            if code.tag == "replace" || code.tag == "delete" {
+            if code.tag == Tag::Replace || code.tag == Tag::Delete {
                 for item in first_sequence
                     .iter()
                     .take(code.first_end)
@@ -78,7 +78,7 @@ pub fn unified_diff<T: Sequence + Display>(
                     res.push(format!("-{}", item));
                 }
             }
-            if code.tag == "replace" || code.tag == "insert" {
+            if code.tag == Tag::Replace || code.tag == Tag::Insert {
                 for item in second_sequence
                     .iter()
                     .take(code.second_end)
@@ -103,11 +103,11 @@ pub fn context_diff<T: Sequence + Display>(
 ) -> Vec<String> {
     let mut res = Vec::new();
     let lineterm = '\n';
-    let mut prefix: HashMap<String, String> = HashMap::new();
-    prefix.insert(String::from("insert"), String::from("+ "));
-    prefix.insert(String::from("delete"), String::from("- "));
-    prefix.insert(String::from("replace"), String::from("! "));
-    prefix.insert(String::from("equal"), String::from("  "));
+    let mut prefix: HashMap<Tag, String> = HashMap::new();
+    prefix.insert(Tag::Insert, String::from("+ "));
+    prefix.insert(Tag::Delete, String::from("- "));
+    prefix.insert(Tag::Replace, String::from("! "));
+    prefix.insert(Tag::Equal, String::from("  "));
     let mut started = false;
     let mut matcher = SequenceMatcher::new(first_sequence, second_sequence);
     for group in &matcher.get_grouped_opcodes(n) {
@@ -124,14 +124,14 @@ pub fn context_diff<T: Sequence + Display>(
         res.push(format!("*** {} ****{}", file1_range, lineterm));
         let mut any = false;
         for opcode in group {
-            if opcode.tag == "replace" || opcode.tag == "delete" {
+            if opcode.tag == Tag::Replace || opcode.tag == Tag::Delete {
                 any = true;
                 break;
             }
         }
         if any {
             for opcode in group {
-                if opcode.tag != "insert" {
+                if opcode.tag != Tag::Insert {
                     for item in first_sequence
                         .iter()
                         .take(opcode.first_end)
@@ -146,14 +146,14 @@ pub fn context_diff<T: Sequence + Display>(
         res.push(format!("--- {} ----{}", file2_range, lineterm));
         any = false;
         for opcode in group {
-            if opcode.tag == "replace" || opcode.tag == "insert" {
+            if opcode.tag == Tag::Replace || opcode.tag == Tag::Insert {
                 any = true;
                 break;
             }
         }
         if any {
             for opcode in group {
-                if opcode.tag != "delete" {
+                if opcode.tag != Tag::Delete {
                     for item in second_sequence
                         .iter()
                         .take(opcode.second_end)

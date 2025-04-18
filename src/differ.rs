@@ -1,4 +1,4 @@
-use sequencematcher::SequenceMatcher;
+use sequencematcher::{SequenceMatcher, Tag};
 use std::cmp;
 use utils::{count_leading, str_with_similar_chars};
 
@@ -22,8 +22,8 @@ impl Differ {
         let mut res = Vec::new();
         for opcode in matcher.get_opcodes() {
             let mut gen = Vec::new();
-            match opcode.tag.as_ref() {
-                "replace" => {
+            match opcode.tag {
+                Tag::Replace => {
                     gen = self.fancy_replace(
                         first_sequence,
                         opcode.first_start,
@@ -33,13 +33,13 @@ impl Differ {
                         opcode.second_end,
                     )
                 }
-                "delete" => {
+                Tag::Delete => {
                     gen = self.dump("-", first_sequence, opcode.first_start, opcode.first_end)
                 }
-                "insert" => {
+                Tag::Insert => {
                     gen = self.dump("+", second_sequence, opcode.second_start, opcode.second_end)
                 }
-                "equal" => {
+                Tag::Equal => {
                     gen = self.dump(" ", first_sequence, opcode.first_start, opcode.first_end)
                 }
                 _ => {}
@@ -147,8 +147,9 @@ impl Differ {
                         second_sequence,
                         second_start,
                         second_end,
-                    ).iter()
-                        .cloned(),
+                    )
+                    .iter()
+                    .cloned(),
                 );
                 return res;
             }
@@ -165,8 +166,9 @@ impl Differ {
                 second_sequence,
                 second_start,
                 best_j,
-            ).iter()
-                .cloned(),
+            )
+            .iter()
+            .cloned(),
         );
         let first_element = &first_sequence[best_i];
         let second_element = &second_sequence[best_j];
@@ -181,18 +183,18 @@ impl Differ {
                     opcode.first_end - opcode.first_start,
                     opcode.second_end - opcode.second_start,
                 );
-                match opcode.tag.as_ref() {
-                    "replace" => {
+                match opcode.tag {
+                    Tag::Replace => {
                         first_tag.push_str(&str_with_similar_chars('^', first_length));
                         second_tag.push_str(&str_with_similar_chars('^', second_length));
                     }
-                    "delete" => {
+                    Tag::Delete => {
                         first_tag.push_str(&str_with_similar_chars('-', first_length));
                     }
-                    "insert" => {
+                    Tag::Insert => {
                         second_tag.push_str(&str_with_similar_chars('+', second_length));
                     }
-                    "equal" => {
+                    Tag::Equal => {
                         first_tag.push_str(&str_with_similar_chars(' ', first_length));
                         second_tag.push_str(&str_with_similar_chars(' ', second_length));
                     }
@@ -217,8 +219,9 @@ impl Differ {
                 second_sequence,
                 best_j + 1,
                 second_end,
-            ).iter()
-                .cloned(),
+            )
+            .iter()
+            .cloned(),
         );
         res
     }

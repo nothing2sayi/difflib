@@ -1,7 +1,7 @@
 extern crate difflib;
 
 use difflib::differ::Differ;
-use difflib::sequencematcher::{Match, Opcode, SequenceMatcher};
+use difflib::sequencematcher::{Match, Opcode, SequenceMatcher, Tag};
 
 #[test]
 fn test_longest_match() {
@@ -41,35 +41,35 @@ fn test_get_opcodes() {
     let result = matcher.get_opcodes();
     let mut expected_result = Vec::new();
     expected_result.push(Opcode {
-        tag: "delete".to_string(),
+        tag: Tag::Delete,
         first_start: 0,
         first_end: 1,
         second_start: 0,
         second_end: 0,
     });
     expected_result.push(Opcode {
-        tag: "equal".to_string(),
+        tag: Tag::Equal,
         first_start: 1,
         first_end: 3,
         second_start: 0,
         second_end: 2,
     });
     expected_result.push(Opcode {
-        tag: "replace".to_string(),
+        tag: Tag::Replace,
         first_start: 3,
         first_end: 4,
         second_start: 2,
         second_end: 3,
     });
     expected_result.push(Opcode {
-        tag: "equal".to_string(),
+        tag: Tag::Equal,
         first_start: 4,
         first_end: 6,
         second_start: 3,
         second_end: 5,
     });
     expected_result.push(Opcode {
-        tag: "insert".to_string(),
+        tag: Tag::Insert,
         first_start: 6,
         first_end: 6,
         second_start: 5,
@@ -145,7 +145,8 @@ fn test_unified_diff() {
         "2005-01-26 23:30:50",
         "2010-04-02 10:20:52",
         3,
-    ).join("");
+    )
+    .join("");
     assert_eq!(
         result,
         "--- Original\t2005-01-26 23:30:50\n+++ Current\t2010-04-02 10:20:52\n@@ -1,4 \
@@ -165,7 +166,8 @@ fn test_context_diff() {
         "2005-01-26 23:30:50",
         "2010-04-02 10:20:52",
         3,
-    ).join("");
+    )
+    .join("");
     assert_eq!(
         result,
         "*** Original\t2005-01-26 23:30:50\n--- Current\t2010-04-02 \

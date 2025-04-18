@@ -20,9 +20,17 @@ impl Match {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Copy, Eq, Hash)]
+pub enum Tag {
+    Insert,
+    Delete,
+    Replace,
+    Equal,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Opcode {
-    pub tag: String,
+    pub tag: Tag,
     pub first_start: usize,
     pub first_end: usize,
     pub second_start: usize,
@@ -30,8 +38,8 @@ pub struct Opcode {
 }
 
 impl Opcode {
-    fn new(
-        tag: String,
+    pub fn new(
+        tag: Tag,
         first_start: usize,
         first_end: usize,
         second_start: usize,
@@ -129,10 +137,11 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
         let len = second_sequence.len();
         if len >= 200 {
             let test_len = (len as f32 / 100.0).floor() as usize + 1;
-            second_sequence_elements = second_sequence_elements
-                .into_iter()
-                .filter(|&(_, ref indexes)| indexes.len() > test_len)
-                .collect();
+            // second_sequence_elements = second_sequence_elements
+            //     .into_iter()
+            //     .filter(|&(_, ref indexes)| indexes.len() > test_len)
+            //     .collect();
+            second_sequence_elements.retain(|_, indexes| indexes.len() <= test_len);
         }
         self.second_sequence_elements = second_sequence_elements;
     }
@@ -182,22 +191,52 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
             }
             j2len = new_j2len;
         }
-        for _ in 0..2 {
-            while best_i > first_start
-                && best_j > second_start
-                && first_sequence.get(best_i - 1) == second_sequence.get(best_j - 1)
-            {
-                best_i -= 1;
-                best_j -= 1;
-                best_size += 1;
-            }
-            while best_i + best_size < first_end
-                && best_j + best_size < second_end
-                && first_sequence.get(best_i + best_size) == second_sequence.get(best_j + best_size)
-            {
-                best_size += 1;
-            }
+        while best_i > first_start
+            && best_j > second_start
+            && first_sequence.get(best_i - 1) == second_sequence.get(best_j - 1)
+        {
+            best_i -= 1;
+            best_j -= 1;
+            best_size += 1;
         }
+        while best_i + best_size < first_end
+            && best_j + best_size < second_end
+            && first_sequence.get(best_i + best_size) == second_sequence.get(best_j + best_size)
+        {
+            best_size += 1;
+        }
+
+        while best_i > first_start
+            && best_j > second_start
+            && first_sequence.get(best_i - 1) == second_sequence.get(best_j - 1)
+        {
+            best_i -= 1;
+            best_j -= 1;
+            best_size += 1;
+        }
+        while best_i + best_size < first_end
+            && best_j + best_size < second_end
+            && first_sequence.get(best_i + best_size) == second_sequence.get(best_j + best_size)
+        {
+            best_size += 1;
+        }
+
+        // for _ in 0..2 {
+        //     while best_i > first_start
+        //         && best_j > second_start
+        //         && first_sequence.get(best_i - 1) == second_sequence.get(best_j - 1)
+        //     {
+        //         best_i -= 1;
+        //         best_j -= 1;
+        //         best_size += 1;
+        //     }
+        //     while best_i + best_size < first_end
+        //         && best_j + best_size < second_end
+        //         && first_sequence.get(best_i + best_size) == second_sequence.get(best_j + best_size)
+        //     {
+        //         best_size += 1;
+        //     }
+        // }
         Match::new(best_i, best_j, best_size)
     }
 
@@ -259,27 +298,28 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
         let mut opcodes = Vec::new();
         let (mut i, mut j) = (0, 0);
         for m in self.get_matching_blocks() {
-            let mut tag = String::new();
+            let mut tag = None;
+
             if i < m.first_start && j < m.second_start {
-                tag = String::from("replace");
+                tag = Some(Tag::Replace);
             } else if i < m.first_start {
-                tag = String::from("delete");
+                tag = Some(Tag::Delete);
             } else if j < m.second_start {
-                tag = String::from("insert");
+                tag = Some(Tag::Insert);
             }
-            if !tag.is_empty() {
-                opcodes.push(Opcode::new(tag, i, m.first_start, j, m.second_start));
+            if tag.is_some() {
+                opcodes.push(Opcode::new(
+                    tag.unwrap(),
+                    i,
+                    m.first_start,
+                    j,
+                    m.second_start,
+                ));
             }
             i = m.first_start + m.size;
             j = m.second_start + m.size;
             if m.size != 0 {
-                opcodes.push(Opcode::new(
-                    String::from("equal"),
-                    m.first_start,
-                    i,
-                    m.second_start,
-                    j,
-                ));
+                opcodes.push(Opcode::new(Tag::Equal, m.first_start, i, m.second_start, j));
             }
         }
         self.opcodes = Some(opcodes);
@@ -290,15 +330,15 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
         let mut res = Vec::new();
         let mut codes = self.get_opcodes();
         if codes.is_empty() {
-            codes.push(Opcode::new("equal".to_string(), 0, 1, 0, 1));
+            codes.push(Opcode::new(Tag::Equal, 0, 1, 0, 1));
         }
 
-        if codes.first().unwrap().tag == "equal" {
+        if codes.first().unwrap().tag == Tag::Equal {
             let opcode = codes.first_mut().unwrap();
             opcode.first_start = max(opcode.first_start, opcode.first_end.saturating_sub(n));
             opcode.second_start = max(opcode.second_start, opcode.second_end.saturating_sub(n));
         }
-        if codes.last().unwrap().tag == "equal" {
+        if codes.last().unwrap().tag == Tag::Equal {
             let opcode = codes.last_mut().unwrap();
             opcode.first_end = min(opcode.first_start + n, opcode.first_end);
             opcode.second_end = min(opcode.second_start + n, opcode.second_end);
@@ -307,7 +347,7 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
         let mut group = Vec::new();
         for code in &codes {
             let (mut first_start, mut second_start) = (code.first_start, code.second_start);
-            if code.tag == "equal" && code.first_end - code.first_start > nn {
+            if code.tag == Tag::Equal && code.first_end - code.first_start > nn {
                 group.push(Opcode::new(
                     code.tag.clone(),
                     code.first_start,
@@ -328,14 +368,15 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
                 code.second_end,
             ));
         }
-        if !(group.len() == 1 && group.first().unwrap().tag == "equal") || group.is_empty() {
+        if !(group.len() == 1 && group.first().unwrap().tag == Tag::Equal) || group.is_empty() {
             res.push(group.clone());
         }
         res
     }
 
     pub fn ratio(&mut self) -> f32 {
-        let matches = self.get_matching_blocks()
+        let matches = self
+            .get_matching_blocks()
             .iter()
             .fold(0, |res, &m| res + m.size);
         calculate_ratio(
