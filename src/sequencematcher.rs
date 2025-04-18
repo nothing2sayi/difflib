@@ -28,6 +28,17 @@ pub enum Tag {
     Equal,
 }
 
+impl Tag {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Tag::Insert => "insert",
+            Tag::Delete => "delete",
+            Tag::Replace => "replace",
+            Tag::Equal => "equal",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Opcode {
     pub tag: Tag,
