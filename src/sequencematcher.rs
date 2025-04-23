@@ -395,4 +395,27 @@ impl<'a, T: Sequence> SequenceMatcher<'a, T> {
             self.first_sequence.len() + self.second_sequence.len(),
         )
     }
+
+    pub fn quick_ratio(&mut self) -> f32 {
+        let mut fullbcount = HashMap::new();
+        for elt in self.second_sequence.iter() {
+            fullbcount.entry(elt).and_modify(|x| *x += 1).or_insert(1);
+        }
+        let mut avail = HashMap::new();
+        let mut matches = 0;
+        for elt in self.first_sequence.iter() {
+            let numb = avail
+                .get(&elt)
+                .map(|x| *x)
+                .unwrap_or(fullbcount.get(elt).map(|x| *x).unwrap_or(0));
+            avail.insert(elt, numb - 1);
+            if numb > 0 {
+                matches += 1;
+            }
+        }
+        calculate_ratio(
+            matches,
+            self.first_sequence.len() + self.second_sequence.len(),
+        )
+    }
 }
